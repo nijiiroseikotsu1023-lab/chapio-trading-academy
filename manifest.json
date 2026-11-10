@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "appVersion": "0.3.0",
+  "contentVersion": "0.3.0",
+  "contentUrl": "content.json",
+  "notes": "中央配信対応、未来データ非参照チャート描画、配布パッケージ"
+}

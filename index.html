@@ -1,0 +1,114 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chapio Trading Academy</title><style>:root{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif}*{box-sizing:border-box}body{margin:0;background:#0c1220;color:#edf3fc}header{background:#151f32;padding:22px max(18px,calc((100% - 1040px)/2));border-bottom:1px solid #344159}main{max-width:1040px;margin:auto;padding:24px 16px 60px}h1{margin:0;font-size:1.6rem}h2{font-size:1.2rem}p{line-height:1.65;color:#b9c8dd}.sub{font-size:.87rem;color:#9caec5}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.panel{background:#18243a;border:1px solid #35445e;border-radius:14px;padding:18px}.course{cursor:pointer;text-align:left;color:inherit;width:100%;font:inherit}.course:disabled{opacity:.5;cursor:not-allowed}.course:hover:not(:disabled),button:hover:not(:disabled){border-color:#66d6bb}button{border:1px solid #50637d;border-radius:10px;background:#243651;color:#fff;padding:12px;cursor:pointer;font:inherit}button.primary{background:#087f75;border-color:#13b4a2}button:disabled{opacity:.45;cursor:default}.pill{font-size:.78rem;color:#84e2d1}.options{display:grid;gap:9px;margin:18px 0}.options button{text-align:left}.options button.selected{border-color:#71e5d2;background:#24524f}.good{color:#81e8bb}.bad{color:#ffabac}.hidden{display:none!important}.bar{height:9px;background:#35445e;border-radius:10px;overflow:hidden}.bar>div{height:100%;background:#19b69e}.stats{display:flex;flex-wrap:wrap;gap:16px}.stats strong{font-size:1.3rem}nav{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0}.muted{color:#9cabc0}.notice{background:#243044;border-left:3px solid #19b69e;padding:12px;margin-top:12px;border-radius:6px}footer{margin-top:32px;color:#91a1b8;font-size:.8rem}#chart{width:100%;height:auto;background:#101a2b;border-radius:10px}label{display:block;margin:10px 0}.section{margin-top:24px}</style></head><body><header><h1>🎮 Chapio Trading Academy</h1><div class="sub">学ぶ → 判断する → 根拠を検証する → 忘れかけた頃に復習する</div></header><main><div class="stats panel"><div>レベル<br><strong id="level">1</strong></div><div>経験値<br><strong id="xp">0 XP</strong></div><div>解答数<br><strong id="attempts">0</strong></div><div>基礎修了<br><strong id="foundation">未修了</strong></div></div><div class="notice" id="updateStatus" role="status">オフライン教材を使用中。オンライン版は起動時に更新を確認します。</div><nav><button onclick="show('home')">コース一覧</button><button onclick="review()">復習する</button><button onclick="checkUpdates(true)">更新を確認</button><button onclick="show('chartPage');drawChart()">チャート演習</button><button onclick="show('progress')">学習記録</button></nav><section id="home"><h2>コースを選択</h2><p>まず共通基礎を習得。基礎テストで80%以上を取ると専門コースが解放されます。修了後も自由に復習できます。</p><div id="courses" class="grid"></div><div class="notice">この初期版はオフライン対応。学習記録はこのブラウザ内に保存されます。実際の売買・投資助言は行いません。</div></section><section id="quiz" class="hidden"><div class="panel"><div class="pill" id="quizCourse"></div><h2 id="question"></h2><div id="questionMeta" class="sub"></div><div id="options" class="options"></div><button class="primary" id="submit" onclick="submitAnswer()">回答を確定</button><div id="feedback" class="notice hidden"></div><button id="next" class="hidden" onclick="nextQuestion()">次の問題へ</button></div></section><section id="result" class="hidden"><div class="panel"><h2 id="resultTitle"></h2><p id="resultText"></p><button class="primary" onclick="show('home')">コース一覧へ</button><button onclick="restart()">もう一度挑戦</button></div></section><section id="chartPage" class="hidden"><h2>未来を隠したチャート演習（架空データ）</h2><p>模式的な価格データを使った判断練習です。実際の市場データではありません。</p><div class="panel"><svg id="chart" viewBox="0 0 650 270" aria-label="ローソク足の模擬チャート"></svg><div id="chartControls"><p>次のローソク足が出る前に、現在の構造を考えよう。価格予測ではなく根拠を重視。</p><label>現在の判断 <select id="decision"><option value="wait">見送り</option><option value="up">上昇を警戒</option><option value="down">下落を警戒</option></select></label><label>根拠 <select id="reason"><option value="structure">高値・安値の構造</option><option value="level">水平線付近の反応</option><option value="uncertain">構造が不明瞭</option></select></label><button class="primary" onclick="revealCandle()">次の足を表示</button><button onclick="resetChart()">新しい演習</button><div id="chartFeedback" class="notice hidden"></div></div></div></section><section id="progress" class="hidden"><h2>学習記録</h2><div id="progressInfo" class="panel"></div><p>復習は間違えた問題を優先し、一定期間後に正解済みの問題も再出題します。現在の問題難易度は3段階。教材更新後も記録を保持します。</p><button onclick="exportProgress()">学習記録を書き出す</button><label>学習記録を読み込む <input type="file" accept="application/json" onchange="importProgress(event)"></label><button onclick="resetProgress()">学習記録を初期化</button></section><footer>Chapio Trading Academy v0.3.0 · 教育目的のみ · 個人情報・取引口座・秘密鍵は収集しません · MIT License</footer></main><script>
+'use strict';
+let courses=[['base','共通基礎','ローソク足・ダウ理論・水平線・リスク管理'],['pa','プライスアクション','裸チャート・値動きの文脈'],['smc','SMC / ICT','流動性・BOS・CHOCH・FVG'],['dow','ダウ理論・順張り','高値安値・トレンド追随'],['pattern','水平線・チャートパターン','支持抵抗・三尊・W型'],['break','ブレイクアウト','突破・リテスト・ダマシ'],['indicator','テクニカル指標','移動平均・RSI・MACD'],['fib','フィボナッチ・波動','値幅・押し戻り・波動仮説'],['mtf','マルチタイムフレーム','上位足と下位足の整合'],['risk','資金管理・検証','期待値・RR・損失管理'],['integrated','総合・Chapio比較','手法間の矛盾と見送り判断']];
+// [course, tier(1..3), question, choices, answer index, explanation]
+let bank=[
+['base',1,'陽線のローソク足では、通常どちらが高い？',['始値','終値','必ず同じ','出来高'],1,'陽線は終値が始値より高い。未確定足の終値は動く。'],
+['base',1,'ローソク足の始値について正しいのは？',['足の途中で動き続ける','足が始まった時点の価格','その足の最高値','次の足の終値'],1,'始値はその足の開始時の価格で固定される。'],
+['base',1,'上ヒゲが示すのは？',['始値から終値までの値幅','高値と実体上端の差','安値と実体下端の差','取引数量'],1,'上ヒゲは高値から実体上端までの範囲。'],
+['base',1,'高値切り上げ・安値切り上げが続く構造は？',['上昇構造','下降構造','必ずレンジ','必ず反転'],0,'HHとHLの組み合わせは上昇構造の典型。'],
+['base',1,'損切りの目的として最も適切なのは？',['損失を必ずゼロにする','相場の不確実性に備え損失を管理する','勝率を100%にする','指標を不要にする'],1,'損切りは不確実性を前提にリスクを制限するための手段。'],
+['base',2,'高値が切り下がっただけで確実に言えることは？',['下降トレンドが確定','次の足は陰線','高値切り下げを観測した','必ず三尊'],2,'高値切り下げ単独では下降トレンドの確定には不十分。'],
+['base',2,'ダブルボトムを一般的に完成とみなす確認は？',['2番底が見えた瞬間','ネックラインの上抜け','RSIが50になる','陰線が3本続く'],1,'2つの底の間の戻り高値を上抜けることが典型的な確認条件。'],
+['base',2,'同じ価格帯で何度も反発した場合の解釈は？',['支持候補として注目する','必ず次も反発する','必ず下抜けする','注文の内訳が確定する'],0,'反発の反復は支持候補を示すが、次の結果は保証しない。'],
+['base',2,'RRが1:2の計画で損切り幅が100ドルなら利確幅は？',['50ドル','100ドル','200ドル','400ドル'],2,'リスク100ドルに対しリワード200ドルで1:2。'],
+['base',2,'未確定の15分足で気をつける点は？',['始値が毎秒変わる','終値と実体の形が変化する','高値が消える','時間足が自動変更される'],1,'未確定足の終値は更新されるため形状も変化する。'],
+['base',3,'高値切り下げ・安値切り下げが確認されたとき最も妥当なのは？',['下降構造を支持する','必ずショートする','次は必ず陰線','必ず売り手が機関投資家'],0,'LHとLLは下降構造を支持するが売買を強制しない。'],
+['base',3,'急騰後の大陰線から断定できないことは？',['高値から押し戻された','実体が陰線になった','特定の大口が売った','買いが高値を維持できなかった'],2,'OHLCだけで取引主体の身元は特定できない。'],
+['base',3,'期待値の検証で必要なものは？',['勝率だけ','利益率だけ','勝率と平均利益・平均損失','連勝数だけ'],2,'期待値は勝率と損益の大きさを組み合わせて考える。'],
+['base',3,'価格が水平抵抗を一瞬超えて戻った場合は？',['常に本物の上抜け','ダマシの候補として検証する','必ずロングする','売り注文が存在しない'],1,'一時的な突破と反落はフェイクブレイクの候補。'],
+['base',3,'異なる手法が矛盾した場合に適切なのは？',['必ず多数決で売買','不確実性を評価し見送る選択肢も残す','最も複雑な手法を優先','最短時間足だけ見る'],1,'矛盾を解消できない場合、見送りも合理的な判断。'],
+['pa',1,'プライスアクション分析の主な対象は？',['値動きとローソク足の文脈','ニュースの見出しだけ','企業の財務諸表だけ','取引所の手数料だけ'],0,'価格の推移とその文脈から相場を読む。'],
+['pa',2,'長い上ヒゲが抵抗帯付近で出た場合は？',['上値拒否の候補','必ず急騰','注文主体が特定できる','次足の終値が確定'],0,'抵抗帯との位置関係が上値拒否の仮説を補強する。'],
+['pa',3,'同じ包み足が異なる位置に出たときは？',['常に同じ意味','文脈で解釈が変わる','形状を無視する','時間足は関係ない'],1,'直前の構造や支持抵抗によって意味は変わる。'],
+['smc',1,'BOSの一般的な意味は？',['構造の突破','移動平均の交差','取引量の平均','窓埋め'],0,'Break of Structureは構造上の重要な高値・安値の突破を指す。'],
+['smc',2,'流動性スイープの候補となる値動きは？',['高値を一時突破し反落','全く動かない','必ず窓を開ける','毎足同じ値幅'],0,'高値・安値の外側を一時的に抜けて戻る動きはスイープ候補。'],
+['smc',3,'FVGを見つけたときの適切な扱いは？',['必ず埋まると断定','他の構造と合わせて仮説を検証','即時の成行注文が必須','損切りは不要'],1,'FVG単独で将来の値動きは保証されない。'],
+['dow',1,'LHとは何を表す？',['高値切り下げ','高値切り上げ','安値切り上げ','安値切り下げ'],0,'Lower Highは前の比較対象より低い高値。'],
+['dow',2,'HHとHLが続く中で安値を一度割った場合は？',['構造変化の可能性を検証','上昇が必ず加速','必ずレンジ確定','無条件に買い増す'],0,'重要安値の割れは従来構造の変化を疑う材料。'],
+['dow',3,'レンジを挟んだトレンド判断で重要なのは？',['重要なスイング高安の更新','ローソク足の色の多数決','常に最短足だけ','毎日の曜日'],0,'重要な高安の更新関係を追う。'],
+['pattern',1,'三尊の基本構造は？',['左肩・頭・右肩','底が4つ','高値がすべて同じ','陽線が3本'],0,'ヘッド＆ショルダーは3つの山とネックラインが基本。'],
+['pattern',2,'三尊を一般的に確認する条件は？',['右肩らしき山ができるだけ','ネックライン下抜け','RSIが70','陽線が連続'],1,'ネックライン下抜けが典型的な完成確認。'],
+['pattern',3,'ダブルボトムの目標値について正しいのは？',['到達が保証される','値幅投影は目安で保証ではない','必ず2倍上がる','時間足に無関係'],1,'パターン目標は値幅の参考であり到達は保証されない。'],
+['break',1,'ブレイクアウトとは？',['重要水準の突破','常に反転','ローソク足の消失','取引停止'],0,'重要なレンジや水平線を抜ける動き。'],
+['break',2,'リテストとは？',['突破した水準を再び試す','必ず急落する','手数料を再計算する','時間足を変更する'],0,'突破した水準に戻り、反応を試す動き。'],
+['break',3,'一時的な突破後にレンジ内へ戻った場合は？',['ダマシの可能性','突破の成功が確定','必ず利益確定','逆指値が不要'],0,'レンジ内への復帰はフェイクブレイクを疑う材料。'],
+['indicator',1,'移動平均線が主に示すものは？',['一定期間の価格の平均的推移','次足の確定値','売買主体の身元','将来利益の保証'],0,'移動平均線は価格データを平滑化して傾向を見る。'],
+['indicator',2,'RSIが高いとき適切なのは？',['必ず即ショート','買われ過ぎの可能性を文脈で評価','必ず上昇継続','出来高がゼロ'],1,'RSIの高水準は即反転を意味しない。'],
+['indicator',3,'指標の重複に関する注意点は？',['似た計算の指標は独立根拠になりにくい','指標を増やすほど確実','指標に遅延はない','価格を見なくてよい'],0,'同じ価格データから派生した指標は情報が重複し得る。'],
+['fib',1,'フィボナッチ・リトレースメントの用途は？',['押し戻り候補の参考','将来の確定価格','注文主体の特定','取引所の監査'],0,'比率を使って押し戻り候補を考える。'],
+['fib',2,'61.8%の水準に到達したら？',['必ず反転','他の根拠と併せて反応を確認','必ず損切り','必ずトレンド終了'],1,'特定比率は反転を保証しない。'],
+['fib',3,'波動の数え方が複数成立する場合は？',['複数仮説と否定条件を管理','都合の良い数え方だけ採用','すべて同時に確定','値動きの検証を止める'],0,'波動解釈には主観性があるため代替シナリオを管理する。'],
+['mtf',1,'MTF分析とは？',['複数時間足の分析','複数取引所の比較だけ','複数口座の同時発注','複数通貨の平均'],0,'Multi-Timeframeは複数の時間軸を組み合わせる分析。'],
+['mtf',2,'4H上昇・15M下降のときは？',['時間軸ごとの役割を区別','必ず4Hが間違い','必ず15Mが間違い','両方が同時に上昇'],0,'上位足の上昇内に下位足の調整が存在し得る。'],
+['mtf',3,'未確定上位足を使う際の注意は？',['足の確定まで形が変化し得る','必ず同じ形で確定','始値が毎秒変化','価格情報が存在しない'],0,'確定前の上位足のシグナルは変化し得る。'],
+['risk',1,'リスクリワード1:2とは？',['想定損失1に対し想定利益2','勝率が必ず50%','利益が必ず2倍','レバレッジ2倍'],0,'損切り幅と利確幅の比を表す。'],
+['risk',2,'勝率40%、平均利益2R、平均損失1Rの期待値は？',['+0.2R','−0.2R','+0.8R','+1.0R'],0,'0.4×2−0.6×1=+0.2R（コスト前）。'],
+['risk',3,'損切りを守って負けた取引の評価は？',['結果だけで失敗','ルール遵守と判断品質を別に評価','損切りを撤廃','次は倍賭け'],1,'結果とプロセスを分けて検証する。'],
+['integrated',1,'手法が一致した場合でも必要なのは？',['リスク管理','必勝宣言','損切り撤廃','検証不要'],0,'複数根拠が一致しても不確実性は残る。'],
+['integrated',2,'SMC買い候補と上位足下降が衝突した場合は？',['衝突の理由と否定条件を確認','必ず買う','必ず売る','どちらも無視'],0,'矛盾の整理と見送り条件が重要。'],
+['integrated',3,'偶然利益が出たルール違反の取引は？',['利益だけで満点','判断過程を低く評価','必ず再現可能','損失管理は不要'],1,'結果の利益より意思決定の質を評価する。']
+];
+
+// DISTRIBUTION POLICY: code is updated by deploying index.html; question content is loaded as JSON.
+// When hosted, manifest.json + content.json on the SAME origin are the central source for all users.
+// Never execute remote scripts or render downloaded question strings as HTML.
+const BUILTIN_COURSES=courses.map(c=>c.slice()), BUILTIN_BANK=bank.map(q=>q.slice());
+const BUILTIN_IDS=new Map(BUILTIN_BANK.map((q,i)=>[q[0]+'|'+q[2],q[0]+'-'+String(i+1).padStart(3,'0')]));
+let activeIds=new Map(BUILTIN_IDS),activeVersion='0.3.0 (同梱版)';
+function qid(q){return activeIds.get(q[0]+'|'+q[2])||q[0]+'|'+q[2]}
+function validContent(c){
+ if(!c||c.schema!==1||!Array.isArray(c.courses)||!Array.isArray(c.questions)||c.questions.length<1||c.questions.length>5000)return false;
+ const ids=new Set(),pairs=new Set();
+ for(const q of c.questions){if(typeof q.id!=='string'||!/^[a-z0-9-]{3,70}$/.test(q.id)||ids.has(q.id)||typeof q.prompt!=='string'||q.prompt.length>500||typeof q.course!=='string'||!Number.isInteger(q.tier)||q.tier<1||q.tier>10||!Array.isArray(q.options)||q.options.length!==4||q.options.some(x=>typeof x!=='string'||x.length>300)||!Number.isInteger(q.answer)||q.answer<0||q.answer>3||typeof q.explanation!=='string'||q.explanation.length>1200)return false;ids.add(q.id);if(pairs.has(q.course+'|'+q.prompt))return false;pairs.add(q.course+'|'+q.prompt)}
+ const courseIds=new Set(c.courses.map(x=>x.id));
+ if(!courseIds.has('base')||c.courses.some(x=>!x||typeof x.id!=='string'||typeof x.name!=='string'||typeof x.description!=='string'||x.name.length>100||x.description.length>300)||c.questions.some(q=>!courseIds.has(q.course)))return false;
+ return true;
+}
+async function checkUpdates(manual=false){
+ const el=document.getElementById('updateStatus');
+ if(location.protocol==='file:'){el.textContent='ZIP版：オフラインで利用中。一斉更新はWeb公開版のみ対応。';return}
+ try{
+  const opts={cache:'no-store'};
+  const res=await fetch('./manifest.json',{...opts,signal:AbortSignal.timeout(6000)});
+  if(!res.ok)throw Error('manifest');
+  const manifest=await res.json();
+  if(manifest.schema!==1||typeof manifest.contentUrl!=='string'||!/^[a-zA-Z0-9._/-]+\.json$/.test(manifest.contentUrl)||manifest.contentUrl.startsWith('/')||manifest.contentUrl.includes('..'))throw Error('manifest validation');
+  const cr=await fetch('./'+manifest.contentUrl,{...opts,signal:AbortSignal.timeout(6000)});
+  if(!cr.ok)throw Error('content');
+  const c=await cr.json();if(!validContent(c))throw Error('content validation');
+  // Preserve current quiz session to avoid changing answers mid-quiz.
+  if(session&&document.getElementById('quiz').classList.contains('hidden')===false){el.textContent='教材の更新を確認しました。解答中の問題は変更せず、終了後に更新できます。';return}
+  courses=c.courses.map(x=>[x.id,x.name,x.description]);bank=c.questions.map(x=>[x.course,x.tier,x.prompt,x.options,x.answer,x.explanation]);
+  activeIds=new Map(c.questions.map(x=>[x.course+'|'+x.prompt,x.id]));activeVersion=String(c.version||manifest.contentVersion||'配信版');
+  el.textContent='教材 '+activeVersion+' を読み込み済み。学習履歴はこの端末に保持されます。ゲーム本体の更新は再読み込みで反映。';
+  if(!document.getElementById('home').classList.contains('hidden'))renderCourses();
+  if(manual)alert('最新の教材を読み込みました。');
+ }catch(err){el.textContent='配信教材を取得できないため同梱版を使用中。接続・公開設定を確認してください。';if(manual)alert('オンライン教材を取得できませんでした。同梱版は利用できます。')}
+}
+
+const key='chapio-academy-v01';let state=load(),session=null,choice=null,chartStep=12,chartData=[];
+function load(){try{let s=JSON.parse(localStorage.getItem(key));if(s&&typeof s==='object'&&s.history&&s.best)return s}catch(e){}return {xp:0,history:{},best:{},unlocked:false,attempts:0}}
+function save(){localStorage.setItem(key,JSON.stringify(state));updateStats()}
+function updateStats(){document.getElementById('level').textContent=1+Math.floor(state.xp/100);document.getElementById('xp').textContent=state.xp+' XP';document.getElementById('attempts').textContent=state.attempts;document.getElementById('foundation').textContent=state.unlocked?'修了':'未修了'}
+function show(id){for(let x of ['home','quiz','result','chartPage','progress'])document.getElementById(x).classList.toggle('hidden',x!==id);if(id==='home')renderCourses();if(id==='progress')renderProgress();updateStats()}
+function renderCourses(){document.getElementById('courses').innerHTML='';courses.forEach(([id,name,desc])=>{let b=document.createElement('button');b.className='panel course';b.disabled=id!=='base'&&!state.unlocked;b.innerHTML='<strong></strong><p></p><span class="pill"></span>';b.querySelector('strong').textContent=name;b.querySelector('p').textContent=desc;b.querySelector('span').textContent=(id==='base'||state.unlocked?'▶ 学習する':'🔒 基礎修了後に解放')+' · 最高 '+(state.best[id]??'未挑戦')+'%';b.onclick=()=>start(id);document.getElementById('courses').appendChild(b)})}
+function getHistory(q){return state.history[qid(q)]||state.history[q[2]]}
+function tierFor(id){let h=Object.values(state.history).filter(x=>x.course===id);let recent=h.slice(-8);let rate=recent.length?recent.filter(x=>x.correct).length/recent.length:0;if(h.length>=12&&rate>=.8)return 3;if(h.length>=5&&rate>=.6)return 2;return 1}
+function start(id,reviewMode=false){let qs=bank.filter(q=>q[0]===id);if(reviewMode){let now=Date.now();qs=bank.filter(q=>{let h=getHistory(q);return h&&(!h.correct||now-h.time>86400000)});if(!qs.length){alert('復習対象がまだありません。通常コースを進めてね。');return}}else{let tier=tierFor(id);let eligible=qs.filter(q=>q[1]<=tier);if(id==='base')eligible=qs;qs=eligible}qs=qs.slice().sort((a,b)=>{let ha=getHistory(a),hb=getHistory(b);let score=h=>(h?(h.correct?2:0)+(Date.now()-h.time<86400000?1:0):0);return score(ha)-score(hb)||Math.random()-.5});session={id,qs:qs.slice(0,id==='base'?15:Math.min(6,qs.length)),index:0,correct:0,reviewMode};renderQuestion()}
+function renderQuestion(){if(session.index>=session.qs.length){finish();return}choice=null;let q=session.qs[session.index];document.getElementById('quizCourse').textContent=(courses.find(c=>c[0]===q[0])||[])[1]+' · '+(session.index+1)+'/'+session.qs.length+' · 難易度 '+q[1];document.getElementById('question').textContent=q[2];document.getElementById('questionMeta').textContent='答えを選んでから確定してください。';let opts=document.getElementById('options');opts.innerHTML='';q[3].forEach((o,i)=>{let b=document.createElement('button');b.textContent=String.fromCharCode(65+i)+'　'+o;b.onclick=()=>{choice=i;[...opts.children].forEach((e,j)=>e.classList.toggle('selected',j===i))};opts.appendChild(b)});document.getElementById('submit').disabled=false;document.getElementById('feedback').classList.add('hidden');document.getElementById('next').classList.add('hidden');show('quiz')}
+function submitAnswer(){if(!session||document.getElementById('submit').disabled)return;if(choice===null){alert('回答を選択してください');return}let q=session.qs[session.index],correct=choice===q[4];session.correct+=correct?1:0;state.xp+=correct?10:2;state.attempts++;state.history[qid(q)]={course:q[0],correct,time:Date.now(),tier:q[1]};save();let f=document.getElementById('feedback');f.classList.remove('hidden');f.innerHTML='';let strong=document.createElement('strong');strong.className=correct?'good':'bad';strong.textContent=correct?'正解！ +10 XP':'不正解 +2 XP';let p=document.createElement('p');p.textContent='正答：'+q[3][q[4]]+'。 '+q[5];f.append(strong,p);document.getElementById('submit').disabled=true;[...document.getElementById('options').children].forEach(b=>b.disabled=true);document.getElementById('next').classList.remove('hidden')}
+function nextQuestion(){session.index++;renderQuestion()}
+function finish(){let pct=Math.round(session.correct/session.qs.length*100),id=session.id;state.best[id]=Math.max(state.best[id]||0,pct);if(id==='base'&&pct>=80)state.unlocked=true;save();document.getElementById('resultTitle').textContent='結果：'+pct+'%';document.getElementById('resultText').textContent=session.correct+' / '+session.qs.length+' 問正解。'+(id==='base'?(state.unlocked?'専門コースが解放されました！':'基礎コースは80%以上で専門コース解放。復習して再挑戦しよう。'):'復習と応用を続けよう。');show('result')}
+function restart(){start(session?.id||'base')}
+function review(){let eligible=bank.filter(q=>{let h=getHistory(q);return h&&(!h.correct||Date.now()-h.time>86400000)});if(!eligible.length){alert('復習対象がまだありません。まずコースを解いてね。');return}session={id:eligible[0][0],qs:eligible.slice(0,10),index:0,correct:0,reviewMode:true};renderQuestion()}
+function renderProgress(){let div=document.getElementById('progressInfo');div.innerHTML='';courses.forEach(([id,name])=>{let p=document.createElement('p');p.textContent=name+'：最高 '+(state.best[id]??'未挑戦')+'%';div.appendChild(p)})}
+function exportProgress(){download('chapio-progress.json',JSON.stringify({format:'chapio-academy-v01',state},null,2),'application/json')}
+function download(name,content,type){let a=document.createElement('a'),url=URL.createObjectURL(new Blob([content],{type}));a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+function importProgress(e){let f=e.target.files?.[0];if(!f)return;f.text().then(t=>{let x=JSON.parse(t);if(x.format!=='chapio-academy-v01'||!x.state||typeof x.state.xp!=='number'||!x.state.history||!x.state.best)throw Error('形式が異なります');state=x.state;save();renderProgress();alert('読み込みました')}).catch(()=>alert('読み込めませんでした'))}
+function resetProgress(){if(confirm('学習記録をすべて初期化しますか？')){state={xp:0,history:{},best:{},unlocked:false,attempts:0};save();show('home')}}
+function resetChart(){chartData=[];let p=100;const phase=Math.random()*6.28,drift=(Math.random()-.5)*.9,vol=1.2+Math.random()*2.2;for(let i=0;i<23;i++){let open=p,close=p+(Math.sin(i*1.8+phase)*vol)+drift;chartData.push({o:open,c:close,h:Math.max(open,close)+1.1+(i%3)*.5,l:Math.min(open,close)-1.1-(i%4)*.3});p=close}chartStep=12;document.getElementById('chartFeedback').classList.add('hidden');drawChart()}
+function drawChart(){if(!chartData.length)resetChart();let svg=document.getElementById('chart');svg.innerHTML='';let shown=chartData.slice(0,chartStep),min=Math.min(...shown.map(x=>x.l))-2,max=Math.max(...shown.map(x=>x.h))+2;const y=p=>245-(p-min)/(max-min)*215;for(let i=0;i<5;i++){let line=document.createElementNS('http://www.w3.org/2000/svg','line');line.setAttribute('x1',0);line.setAttribute('x2',650);line.setAttribute('y1',35+i*50);line.setAttribute('y2',35+i*50);line.setAttribute('stroke','#2d3b50');svg.append(line)}shown.forEach((d,i)=>{let x=20+i*25,up=d.c>=d.o,col=up?'#2ad5a6':'#f16c7d',line=document.createElementNS('http://www.w3.org/2000/svg','line'),rect=document.createElementNS('http://www.w3.org/2000/svg','rect');line.setAttribute('x1',x);line.setAttribute('x2',x);line.setAttribute('y1',y(d.h));line.setAttribute('y2',y(d.l));line.setAttribute('stroke',col);line.setAttribute('stroke-width',2);rect.setAttribute('x',x-7);rect.setAttribute('y',Math.min(y(d.o),y(d.c)));rect.setAttribute('width',14);rect.setAttribute('height',Math.max(2,Math.abs(y(d.o)-y(d.c))));rect.setAttribute('fill',col);svg.append(line,rect)});let t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',20);t.setAttribute('y',20);t.setAttribute('fill','#a4b6cc');t.setAttribute('font-size',12);t.textContent='表示済み '+chartStep+' / '+chartData.length+' 本';svg.append(t)}
+function revealCandle(){let decision=document.getElementById('decision').value,reason=document.getElementById('reason').value;if(chartStep>=chartData.length){resetChart();return}let prev=chartData[chartStep-1].c,next=chartData[chartStep].c;chartStep++;drawChart();let f=document.getElementById('chartFeedback');f.classList.remove('hidden');f.textContent='次の足：'+(next>prev?'上昇':next<prev?'下落':'横ばい')+'。あなたの判断：'+({wait:'見送り',up:'上昇警戒',down:'下落警戒'}[decision])+'。根拠：'+({structure:'高値・安値の構造',level:'水平線',uncertain:'不明瞭な構造'}[reason])+'。1本の結果だけで判断の良し悪しは決まりません。事前に決めた根拠と否定条件を振り返ろう。'}
+updateStats();renderCourses();checkUpdates(false);
+</script></body></html>

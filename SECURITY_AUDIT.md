@@ -15,6 +15,9 @@
 - Roll back in-memory state if persistence fails. Corrupt stored data is left untouched and a safe temporary state is used.
 - Freeze a corrupt or oversized primary progress record and route subsequent answers/saves to a separate recovery key; reload that recovery key on later starts while preserving the original bytes.
 - Commit answer XP, history, score and unlock changes only after persistence succeeds, preventing UI/state divergence on quota or storage failures.
+- Load a valid recovery record even when the primary key is absent, and keep subsequent writes in the recovery area.
+- Enforce the 1 MiB UTF-8 byte limit immediately before every local save; post-save UI errors cannot turn a successful write into a reported storage failure.
+- Prioritize incorrect and older answers for review, and add process-focused feedback to the entry-decision exercise.
 - Limit downloaded course JSON to 2 MiB and validate course count, IDs and uniqueness.
 - Enforce the 2 MiB course limit while streaming response bytes, including responses without `Content-Length`.
 - Run the security regression test automatically for pull requests with a read-only GitHub Actions token.

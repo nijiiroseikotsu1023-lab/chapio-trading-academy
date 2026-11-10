@@ -58,11 +58,11 @@ const BUILTIN_IDS=new Map(BUILTIN_BANK.map((q,i)=>[q[0]+'|'+q[2],q[0]+'-'+String
 let activeIds=new Map(BUILTIN_IDS),activeVersion='0.3.0 (同梱版)';
 function qid(q){return activeIds.get(q[0]+'|'+q[2])||q[0]+'|'+q[2]}
 function validContent(c){
- if(!c||c.schema!==1||!Array.isArray(c.courses)||!Array.isArray(c.questions)||c.questions.length<1||c.questions.length>5000)return false;
+ if(!c||c.schema!==1||!Array.isArray(c.courses)||c.courses.length<1||c.courses.length>100||!Array.isArray(c.questions)||c.questions.length<1||c.questions.length>5000)return false;
  const ids=new Set(),pairs=new Set();
  for(const q of c.questions){if(typeof q.id!=='string'||!/^[a-z0-9-]{3,70}$/.test(q.id)||ids.has(q.id)||typeof q.prompt!=='string'||q.prompt.length>500||typeof q.course!=='string'||!Number.isInteger(q.tier)||q.tier<1||q.tier>10||!Array.isArray(q.options)||q.options.length!==4||q.options.some(x=>typeof x!=='string'||x.length>300)||!Number.isInteger(q.answer)||q.answer<0||q.answer>3||typeof q.explanation!=='string'||q.explanation.length>1200)return false;ids.add(q.id);if(pairs.has(q.course+'|'+q.prompt))return false;pairs.add(q.course+'|'+q.prompt)}
  const courseIds=new Set(c.courses.map(x=>x.id));
- if(!courseIds.has('base')||c.courses.some(x=>!x||typeof x.id!=='string'||typeof x.name!=='string'||typeof x.description!=='string'||x.name.length>100||x.description.length>300)||c.questions.some(q=>!courseIds.has(q.course)))return false;
+ if(courseIds.size!==c.courses.length||!courseIds.has('base')||c.courses.some(x=>!x||typeof x.id!=='string'||!/^[a-z0-9-]{1,70}$/.test(x.id)||typeof x.name!=='string'||typeof x.description!=='string'||x.name.length>100||x.description.length>300)||c.questions.some(q=>!courseIds.has(q.course)))return false;
  return true;
 }
 async function checkUpdates(manual=false){
@@ -76,7 +76,7 @@ async function checkUpdates(manual=false){
   if(manifest.schema!==1||typeof manifest.contentUrl!=='string'||!/^[a-zA-Z0-9._/-]+\.json$/.test(manifest.contentUrl)||manifest.contentUrl.startsWith('/')||manifest.contentUrl.includes('..'))throw Error('manifest validation');
   const cr=await fetch('./'+manifest.contentUrl,{...opts,signal:AbortSignal.timeout(6000)});
   if(!cr.ok)throw Error('content');
-  const c=await cr.json();if(!validContent(c))throw Error('content validation');
+  const declared=Number(cr.headers.get('content-length')||0);if(declared>2*1024*1024)throw Error('content too large');const raw=await cr.text();if(raw.length>2*1024*1024)throw Error('content too large');const c=JSON.parse(raw);if(!validContent(c))throw Error('content validation');
   // Preserve current quiz session to avoid changing answers mid-quiz.
   if(session&&document.getElementById('quiz').classList.contains('hidden')===false){el.textContent='教材の更新を確認しました。解答中の問題は変更せず、終了後に更新できます。';return}
   courses=c.courses.map(x=>[x.id,x.name,x.description]);bank=c.questions.map(x=>[x.course,x.tier,x.prompt,x.options,x.answer,x.explanation]);
@@ -87,9 +87,17 @@ async function checkUpdates(manual=false){
  }catch(err){el.textContent='配信教材を取得できないため同梱版を使用中。接続・公開設定を確認してください。';if(manual)alert('オンライン教材を取得できませんでした。同梱版は利用できます。')}
 }
 
-const key='chapio-academy-v01';let state=load(),session=null,choice=null,chartStep=12,chartData=[];
-function load(){try{let s=JSON.parse(localStorage.getItem(key));if(s&&typeof s==='object'&&s.history&&s.best)return s}catch(e){}return {xp:0,history:{},best:{},unlocked:false,attempts:0}}
-function save(){localStorage.setItem(key,JSON.stringify(state));updateStats()}
+const key='chapio-academy-v01',MAX_PROGRESS_BYTES=1024*1024,MAX_HISTORY=10000;let state=load(),session=null,choice=null,chartStep=12,chartData=[];
+function cleanProgress(s){
+ if(!s||typeof s!=='object'||Array.isArray(s)||!Number.isSafeInteger(s.xp)||s.xp<0||s.xp>1e8||!Number.isSafeInteger(s.attempts)||s.attempts<0||s.attempts>1e8||typeof s.unlocked!=='boolean'||!s.history||typeof s.history!=='object'||Array.isArray(s.history)||!s.best||typeof s.best!=='object'||Array.isArray(s.best))throw Error('進捗形式が不正です');
+ const history=Object.create(null),best=Object.create(null),historyEntries=Object.entries(s.history),bestEntries=Object.entries(s.best),badKey=k=>['__proto__','prototype','constructor'].includes(k);
+ if(historyEntries.length>MAX_HISTORY||bestEntries.length>100)throw Error('記録数が多すぎます');
+ for(const [k,v] of historyEntries){if(!k||k.length>600||badKey(k)||!v||typeof v!=='object'||Array.isArray(v)||typeof v.course!=='string'||!/^[a-z0-9-]{1,70}$/.test(v.course)||typeof v.correct!=='boolean'||!Number.isFinite(v.time)||v.time<0||v.time>Date.now()+86400000||!Number.isInteger(v.tier)||v.tier<1||v.tier>10)throw Error('履歴が不正です');history[k]={course:v.course,correct:v.correct,time:v.time,tier:v.tier}}
+ for(const [k,v] of bestEntries){if(badKey(k)||!/^[a-z0-9-]{1,70}$/.test(k)||!Number.isFinite(v)||v<0||v>100)throw Error('成績が不正です');best[k]=v}
+ return {xp:s.xp,history,best,unlocked:s.unlocked,attempts:s.attempts};
+}
+function load(){try{const raw=localStorage.getItem(key);if(raw===null)return {xp:0,history:{},best:{},unlocked:false,attempts:0};if(raw.length>MAX_PROGRESS_BYTES)throw Error('保存データが大きすぎます');return cleanProgress(JSON.parse(raw))}catch(e){console.warn('保存済み学習記録を保持したまま安全な初期状態で起動します',e);return {xp:0,history:{},best:{},unlocked:false,attempts:0}}}
+function save(){try{localStorage.setItem(key,JSON.stringify(state));updateStats();return true}catch(e){updateStats();alert('学習記録を端末に保存できませんでした。容量を確認し、書き出しを行ってください。');return false}}
 function updateStats(){document.getElementById('level').textContent=1+Math.floor(state.xp/100);document.getElementById('xp').textContent=state.xp+' XP';document.getElementById('attempts').textContent=state.attempts;document.getElementById('foundation').textContent=state.unlocked?'修了':'未修了'}
 function show(id){for(let x of ['home','quiz','result','chartPage','progress'])document.getElementById(x).classList.toggle('hidden',x!==id);if(id==='home')renderCourses();if(id==='progress')renderProgress();updateStats()}
 function renderCourses(){document.getElementById('courses').innerHTML='';courses.forEach(([id,name,desc])=>{let b=document.createElement('button');b.className='panel course';b.disabled=id!=='base'&&!state.unlocked;b.innerHTML='<strong></strong><p></p><span class="pill"></span>';b.querySelector('strong').textContent=name;b.querySelector('p').textContent=desc;b.querySelector('span').textContent=(id==='base'||state.unlocked?'▶ 学習する':'🔒 基礎修了後に解放')+' · 最高 '+(state.best[id]??'未挑戦')+'%';b.onclick=()=>start(id);document.getElementById('courses').appendChild(b)})}
@@ -105,7 +113,7 @@ function review(){let eligible=bank.filter(q=>{let h=getHistory(q);return h&&(!h
 function renderProgress(){let div=document.getElementById('progressInfo');div.innerHTML='';courses.forEach(([id,name])=>{let p=document.createElement('p');p.textContent=name+'：最高 '+(state.best[id]??'未挑戦')+'%';div.appendChild(p)})}
 function exportProgress(){download('chapio-progress.json',JSON.stringify({format:'chapio-academy-v01',state},null,2),'application/json')}
 function download(name,content,type){let a=document.createElement('a'),url=URL.createObjectURL(new Blob([content],{type}));a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-function importProgress(e){let f=e.target.files?.[0];if(!f)return;f.text().then(t=>{let x=JSON.parse(t);if(x.format!=='chapio-academy-v01'||!x.state||typeof x.state.xp!=='number'||!x.state.history||!x.state.best)throw Error('形式が異なります');state=x.state;save();renderProgress();alert('読み込みました')}).catch(()=>alert('読み込めませんでした'))}
+function importProgress(e){const f=e.target.files?.[0];if(!f)return;if(f.size>MAX_PROGRESS_BYTES){alert('ファイルが大きすぎます（上限1MB）');e.target.value='';return}f.text().then(t=>{if(t.length>MAX_PROGRESS_BYTES)throw Error('ファイルが大きすぎます');const x=JSON.parse(t);if(!x||x.format!=='chapio-academy-v01')throw Error('形式が異なります');const next=cleanProgress(x.state),old=state;state=next;if(!save()){state=old;throw Error('保存できませんでした')}renderProgress();alert('読み込みました')}).catch(err=>{console.warn(err);alert('安全確認に失敗したため読み込みませんでした')}).finally(()=>{e.target.value=''})}
 function resetProgress(){if(confirm('学習記録をすべて初期化しますか？')){state={xp:0,history:{},best:{},unlocked:false,attempts:0};save();show('home')}}
 function resetChart(){chartData=[];let p=100;const phase=Math.random()*6.28,drift=(Math.random()-.5)*.9,vol=1.2+Math.random()*2.2;for(let i=0;i<23;i++){let open=p,close=p+(Math.sin(i*1.8+phase)*vol)+drift;chartData.push({o:open,c:close,h:Math.max(open,close)+1.1+(i%3)*.5,l:Math.min(open,close)-1.1-(i%4)*.3});p=close}chartStep=12;document.getElementById('chartFeedback').classList.add('hidden');drawChart()}
 function drawChart(){if(!chartData.length)resetChart();let svg=document.getElementById('chart');svg.innerHTML='';let shown=chartData.slice(0,chartStep),min=Math.min(...shown.map(x=>x.l))-2,max=Math.max(...shown.map(x=>x.h))+2;const y=p=>245-(p-min)/(max-min)*215;for(let i=0;i<5;i++){let line=document.createElementNS('http://www.w3.org/2000/svg','line');line.setAttribute('x1',0);line.setAttribute('x2',650);line.setAttribute('y1',35+i*50);line.setAttribute('y2',35+i*50);line.setAttribute('stroke','#2d3b50');svg.append(line)}shown.forEach((d,i)=>{let x=20+i*25,up=d.c>=d.o,col=up?'#2ad5a6':'#f16c7d',line=document.createElementNS('http://www.w3.org/2000/svg','line'),rect=document.createElementNS('http://www.w3.org/2000/svg','rect');line.setAttribute('x1',x);line.setAttribute('x2',x);line.setAttribute('y1',y(d.h));line.setAttribute('y2',y(d.l));line.setAttribute('stroke',col);line.setAttribute('stroke-width',2);rect.setAttribute('x',x-7);rect.setAttribute('y',Math.min(y(d.o),y(d.c)));rect.setAttribute('width',14);rect.setAttribute('height',Math.max(2,Math.abs(y(d.o)-y(d.c))));rect.setAttribute('fill',col);svg.append(line,rect)});let t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',20);t.setAttribute('y',20);t.setAttribute('fill','#a4b6cc');t.setAttribute('font-size',12);t.textContent='表示済み '+chartStep+' / '+chartData.length+' 本';svg.append(t)}

@@ -17,6 +17,7 @@
 - Commit answer XP, history, score and unlock changes only after persistence succeeds, preventing UI/state divergence on quota or storage failures.
 - Load a valid recovery record even when the primary key is absent, and keep subsequent writes in the recovery area.
 - Enforce the 1 MiB UTF-8 byte limit immediately before every local save; post-save UI errors cannot turn a successful write into a reported storage failure.
+- Measure imported JSON with the same UTF-8 byte rule, keep a successfully imported record committed if only the subsequent progress rendering fails, and contain errors while repainting the old statistics after a failed save.
 - Prioritize incorrect and older answers for review, and add process-focused feedback to the entry-decision exercise.
 - Limit downloaded course JSON to 2 MiB and validate course count, IDs and uniqueness.
 - Enforce the 2 MiB course limit while streaming response bytes, including responses without `Content-Length`.
@@ -26,11 +27,12 @@
 
 - Browser smoke test: course start, answer submission, XP/history update, review data path, chart rendering and next-candle reveal passed.
 - Static checks: no remote scripts, `eval`, `Function` constructor or common API secrets; JSON syntax and `git diff --check` passed.
-- `security-tests.mjs` covers valid import, malformed values, excessive records, prototype pollution, corrupt-primary recovery/restart, transactional save failure, missing/oversized `Content-Length`, and oversized streamed responses. PASS with Node.js v24.22.2 on 2026-11-10.
+- `security-tests.mjs` covers valid import, malformed values, excessive records, prototype pollution, corrupt-primary recovery/restart, transactional save failure, post-save/rollback UI exceptions, mobile viewport/responsive-chart invariants, missing/oversized `Content-Length`, and oversized streamed responses. PASS with Node.js v24.22.2 on 2026-11-10.
 
 ## Residual risks
 
 - Browser file-chooser automation remains manual; validation and streaming boundary cases are covered at the function level.
+- iPhone, iPad, Android and Windows hardware/browser combinations remain manual verification items; responsive invariants are statically tested but are not equivalent to physical touch, browser file download or storage-quota testing.
 - The same-origin content update is not cryptographically signed; repository/hosting compromise could replace course content within the enforced schema.
 - The single-file app uses inline JavaScript, so a strict nonce/hash-based CSP would require a larger packaging change.
 - Existing MIT grants permit redistribution of versions already distributed under MIT. Any future license or access change requires owner and legal review.

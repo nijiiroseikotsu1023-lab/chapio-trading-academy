@@ -13,6 +13,8 @@
 - Validate scalar types/ranges, key lengths, course IDs, timestamps and tiers; reject prototype-pollution keys.
 - Copy accepted data into null-prototype dictionaries instead of retaining imported objects.
 - Roll back in-memory state if persistence fails. Corrupt stored data is left untouched and a safe temporary state is used.
+- Freeze a corrupt or oversized primary progress record and route subsequent answers/saves to a separate recovery key; reload that recovery key on later starts while preserving the original bytes.
+- Commit answer XP, history, score and unlock changes only after persistence succeeds, preventing UI/state divergence on quota or storage failures.
 - Limit downloaded course JSON to 2 MiB and validate course count, IDs and uniqueness.
 - Enforce the 2 MiB course limit while streaming response bytes, including responses without `Content-Length`.
 - Run the security regression test automatically for pull requests with a read-only GitHub Actions token.
@@ -21,7 +23,7 @@
 
 - Browser smoke test: course start, answer submission, XP/history update, review data path, chart rendering and next-candle reveal passed.
 - Static checks: no remote scripts, `eval`, `Function` constructor or common API secrets; JSON syntax and `git diff --check` passed.
-- `security-tests.mjs` covers valid import, malformed values, excessive records, prototype pollution, missing/oversized `Content-Length`, and oversized streamed responses. PASS with Node.js v24.22.2 on 2026-11-10.
+- `security-tests.mjs` covers valid import, malformed values, excessive records, prototype pollution, corrupt-primary recovery/restart, transactional save failure, missing/oversized `Content-Length`, and oversized streamed responses. PASS with Node.js v24.22.2 on 2026-11-10.
 
 ## Residual risks
 

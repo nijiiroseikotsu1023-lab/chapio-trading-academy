@@ -19,7 +19,7 @@
 
 - Browser smoke test: course start, answer submission, XP/history update, review data path, chart rendering and next-candle reveal passed.
 - Static checks: no remote scripts, `eval`, `Function` constructor or common API secrets; JSON syntax and `git diff --check` passed.
-- `security-tests.mjs` covers valid import, malformed values, excessive records and prototype pollution. It was added but not run locally because Node.js is unavailable in the execution environment.
+- `security-tests.mjs` covers valid import, malformed values, excessive records and prototype pollution. PASS with Node.js v24.22.2 on 2026-11-10.
 
 ## Residual risks
 
